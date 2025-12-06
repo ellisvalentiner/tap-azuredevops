@@ -30,9 +30,7 @@ class AzureDevOpsStream(RESTStream):
     @property
     def authenticator(self) -> AzureDevOpsAuthenticator:
         """Return authenticator instance."""
-        return AzureDevOpsAuthenticator(
-            personal_access_token=self.config["personal_access_token"]
-        )
+        return AzureDevOpsAuthenticator(personal_access_token=self.config["personal_access_token"])
 
     @property
     def organization(self) -> str:
