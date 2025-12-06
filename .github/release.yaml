@@ -1,0 +1,55 @@
+# GitHub Release Configuration
+# Note: This file is a reference/template for release practices.
+# The actual release automation is handled by .github/workflows/release.yml
+
+changelog:
+  # Generate changelog from PRs
+  enabled: true
+  
+  # Categories for organizing changelog entries
+  categories:
+    - title: '🚀 Features'
+      labels:
+        - 'enhancement'
+        - 'feature'
+    - title: '🐛 Bug Fixes'
+      labels:
+        - 'bug'
+        - 'fix'
+    - title: '📚 Documentation'
+      labels:
+        - 'documentation'
+        - 'docs'
+    - title: '♻️ Refactoring'
+      labels:
+        - 'refactor'
+    - title: '⚡ Performance'
+      labels:
+        - 'performance'
+    - title: '🔧 Maintenance'
+      labels:
+        - 'maintenance'
+        - 'chore'
+
+# Release branch (trunk-based development)
+branches:
+  - main
+
+# Version bumping
+# Note: Version is managed in pyproject.toml for Python projects
+version:
+  # Version is stored in pyproject.toml
+  file: 'pyproject.toml'
+  
+# Pre-release checks
+# These are enforced by the release workflow (.github/workflows/release.yml)
+checks:
+  - name: 'All tests pass'
+    required: true
+  - name: 'Build succeeds'
+    required: true
+  - name: 'Linter passes'
+    required: true
+  - name: 'pyproject.toml version matches tag'
+    required: true
+

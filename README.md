@@ -1,0 +1,302 @@
+# tap-azuredevops
+
+A [Singer](https://www.singer.io/) tap for extracting data from Azure DevOps.
+
+## Overview
+
+This tap extracts data from Azure DevOps, including:
+
+- **Projects**: Organization projects
+- **Repositories**: Git repositories within projects
+- **Pull Requests**: Pull requests for each repository
+- **Commits**: Commits for each repository
+- **Branches**: Branches for each repository
+- **Tags**: Git tags for each repository
+- **Work Items**: Work items (issues, tasks, bugs, etc.) for each project
+- **Builds**: CI/CD build history for each project
+- **Pipelines**: Pipeline definitions for each project
+- **Releases**: Release and deployment history for each project
+
+## Installation
+
+Install using `uv`:
+
+```bash
+uv sync
+```
+
+## Configuration
+
+Copy the sample configuration file and update it with your credentials:
+
+```bash
+cp config-sample.json config.json
+```
+
+Then edit `config.json` with your Azure DevOps credentials:
+
+```json
+{
+  "organization": "your-org-name",
+  "personal_access_token": "your-pat-token"
+}
+```
+
+### Configuration Options
+
+**Required:**
+- `organization`: Azure DevOps organization name
+- `personal_access_token`: Personal Access Token for authentication
+
+**Optional:**
+- `projects`: Array of project names to filter (defaults to all projects)
+- `start_date`: Start date for incremental replication (ISO 8601 format)
+
+Example with all options:
+
+```json
+{
+  "organization": "your-org-name",
+  "personal_access_token": "your-pat-token",
+  "projects": ["project1", "project2"],
+  "start_date": "2024-01-01T00:00:00Z"
+}
+```
+
+### Personal Access Token
+
+To create a Personal Access Token:
+
+1. Go to Azure DevOps → User Settings → Personal Access Tokens
+2. Create a new token with appropriate scopes:
+   - **Code (read)**: Required for repositories, commits, branches
+   - **Pull Requests (read)**: Required for pull requests
+
+## Usage
+
+### Discovery
+
+Discover available streams and their schemas:
+
+```bash
+uv run tap-azuredevops --config config.json --discover
+```
+
+Or if installed globally:
+
+```bash
+tap-azuredevops --config config.json --discover
+```
+
+### Sync
+
+Sync all streams:
+
+```bash
+uv run tap-azuredevops --config config.json
+```
+
+Sync specific streams:
+
+```bash
+uv run tap-azuredevops --config config.json --catalog catalog.json
+```
+
+### With Meltano
+
+Add to your `meltano.yml`:
+
+```yaml
+plugins:
+  extractors:
+    - name: tap-azuredevops
+      namespace: tap_azuredevops
+      pip_url: -e .
+      config:
+        organization: ${AZURE_DEVOPS_ORGANIZATION}
+        personal_access_token: ${AZURE_DEVOPS_PAT}
+      # Or use a config file:
+      # config: config.json
+```
+
+## Streams
+
+### Projects
+
+Extracts all projects in the organization.
+
+- **Primary Key**: `id`
+- **Endpoint**: `GET /_apis/projects`
+
+### Repositories
+
+Extracts all Git repositories for each project.
+
+- **Primary Key**: `id`
+- **Parent Stream**: `projects`
+- **Endpoint**: `GET /{project}/_apis/git/repositories`
+
+### Pull Requests
+
+Extracts all pull requests for each repository.
+
+- **Primary Key**: `pullRequestId`
+- **Replication Key**: `creationDate` (supports incremental sync)
+- **Parent Stream**: `repositories`
+- **Endpoint**: `GET /{project}/_apis/git/repositories/{repoId}/pullrequests`
+
+### Commits
+
+Extracts all commits for each repository.
+
+- **Primary Key**: `commitId`
+- **Replication Key**: `author.date` (supports incremental sync)
+- **Parent Stream**: `repositories`
+- **Endpoint**: `GET /{project}/_apis/git/repositories/{repoId}/commits`
+
+### Branches
+
+Extracts all branches for each repository.
+
+- **Primary Key**: `name`
+- **Parent Stream**: `repositories`
+- **Endpoint**: `GET /{project}/_apis/git/repositories/{repoId}/refs?filter=heads/`
+
+### Tags
+
+Extracts all Git tags for each repository.
+
+- **Primary Key**: `name`
+- **Parent Stream**: `repositories`
+- **Endpoint**: `GET /{project}/_apis/git/repositories/{repoId}/refs?filter=tags/`
+
+### Work Items
+
+Extracts all work items (issues, tasks, bugs, user stories, etc.) for each project.
+
+- **Primary Key**: `id`
+- **Replication Key**: `fields/System.ChangedDate` (supports incremental sync)
+- **Parent Stream**: `projects`
+- **Endpoint**: `GET /{project}/_apis/wit/workitems`
+- **Note**: Uses WIQL (Work Item Query Language) to query work items efficiently
+
+### Builds
+
+Extracts all CI/CD builds for each project.
+
+- **Primary Key**: `id`
+- **Replication Key**: `finishTime` (supports incremental sync)
+- **Parent Stream**: `projects`
+- **Endpoint**: `GET /{project}/_apis/build/builds`
+
+### Pipelines
+
+Extracts all pipeline definitions for each project.
+
+- **Primary Key**: `id`
+- **Parent Stream**: `projects`
+- **Endpoint**: `GET /{project}/_apis/pipelines/pipelines`
+
+### Releases
+
+Extracts all releases and deployments for each project.
+
+- **Primary Key**: `id`
+- **Replication Key**: `createdOn` (supports incremental sync)
+- **Parent Stream**: `projects`
+- **Endpoint**: `GET /{project}/_apis/release/releases`
+
+## Development
+
+### Setup
+
+```bash
+# Install dependencies
+uv sync
+
+# Install development dependencies
+uv sync --extra dev
+```
+
+### Testing
+
+```bash
+# Run tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=tap_azuredevops
+```
+
+### Formatting and Linting
+
+```bash
+# Format code
+ruff format .
+
+# Fix linting issues
+ruff check --fix .
+
+# Check linting
+ruff check .
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+### Development Setup
+
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/your-username/tap-azuredevops.git`
+3. Install dependencies: `uv sync --extra dev`
+4. Create a branch for your changes: `git checkout -b feature/your-feature`
+5. Make your changes and test them
+6. Run linting: `ruff check . && ruff format .`
+7. Run tests: `uv run pytest`
+8. Submit a pull request
+
+### Code Style
+
+This project uses `ruff` for formatting and linting. Please ensure your code passes:
+
+```bash
+ruff format .
+ruff check .
+```
+
+### Testing
+
+Add tests for new features in the `tests/` directory. Run tests with:
+
+```bash
+uv run pytest
+```
+
+## Troubleshooting
+
+### Authentication Errors
+
+If you encounter authentication errors:
+- Verify your Personal Access Token is valid and not expired
+- Ensure the token has the required scopes (Code read, Pull Requests read)
+- Check that your organization name is correct
+
+### Rate Limiting
+
+Azure DevOps has rate limits (typically 200 requests per minute). The tap includes automatic retry logic with exponential backoff. If you encounter rate limit errors:
+- Reduce the number of projects being synced
+- Use the `projects` config option to filter to specific projects
+- Consider using incremental sync to reduce full table scans
+
+### 404 Errors
+
+If you see 404 errors:
+- Verify the organization name is correct
+- Ensure the projects exist in your organization
+- Check that your PAT has access to the projects
+
+## License
+
+MIT License - see [LICENSE](LICENSE) file for details.
+

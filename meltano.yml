@@ -1,0 +1,38 @@
+send_anonymous_usage_stats: true
+project_id: tap-azuredevops
+default_environment: test
+requires_meltano: '>=4.0'
+environments:
+- name: test
+plugins:
+  extractors:
+  - name: tap-azuredevops
+    namespace: tap_azuredevops
+    pip_url: -e .
+    capabilities:
+    - state
+    - catalog
+    - discover
+    - about
+    - stream-maps
+    - structured-logging
+    settings:
+    - name: organization
+      label: Organization
+      description: Azure DevOps organization name
+    - name: personal_access_token
+      kind: string
+      label: Personal Access Token
+      description: Personal Access Token for authentication
+      sensitive: true
+    - name: projects
+      label: Projects
+      description: Optional list of project names to filter
+    - name: start_date
+      kind: date_iso8601
+      label: Start Date
+      description: Start date for incremental replication (ISO 8601 format)
+  loaders:
+  - name: target-jsonl
+    variant: andyh1203
+    pip_url: target-jsonl

@@ -1,0 +1,84 @@
+[project]
+name = "tap-azuredevops"
+version = "0.1.0"
+description = "Singer tap for extracting data from Azure DevOps"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Ellis Valentiner", email = "ellisvalentiner@users.noreply.github.com"},
+]
+keywords = [
+    "singer",
+    "singer-tap",
+    "singer-io",
+    "meltano",
+    "azure-devops",
+    "devops",
+    "elt",
+    "etl",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Database",
+]
+dependencies = [
+    "singer-sdk>=0.53.0",
+    "requests>=2.32.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/ellisvalentiner/tap-azuredevops"
+Documentation = "https://github.com/ellisvalentiner/tap-azuredevops#readme"
+Repository = "https://github.com/ellisvalentiner/tap-azuredevops"
+Issues = "https://github.com/ellisvalentiner/tap-azuredevops/issues"
+
+[project.scripts]
+tap-azuredevops = "tap_azuredevops.tap:TapAzureDevOps.cli"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # Pyflakes
+    "I",    # isort (import sorting)
+    "N",    # pep8-naming
+    "UP",   # pyupgrade (modern syntax)
+    "B",    # flake8-bugbear
+]
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["tap_azuredevops"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+

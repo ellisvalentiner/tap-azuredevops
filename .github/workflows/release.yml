@@ -1,0 +1,147 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"  # Matches semantic versioning tags (e.g., v1.0.0, v1.0.0-alpha.1)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: "ubuntu-latest"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Run linter
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Extract version from tag
+        id: extract
+        if: github.ref_type == 'tag'
+        run: |
+          ref_name=${GITHUB_REF_NAME}
+          # Remove 'v' prefix if present
+          version=${ref_name#v}
+          # Get previous version tag
+          previous_version=$(git tag -l "v*" --sort=-v:refname | tail -n +2 | head -n 1 || echo "")
+          
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "previous_version=$previous_version" >> $GITHUB_OUTPUT
+          echo "VERSION=$version" >> $GITHUB_ENV
+          echo "PREVIOUS_VERSION=$previous_version" >> $GITHUB_ENV
+
+      - name: Verify pyproject.toml version matches tag
+        run: |
+          TAG_VERSION="${{ steps.extract.outputs.version }}"
+          PACKAGE_VERSION=$(uv run python -c "import re; content = open('pyproject.toml').read(); match = re.search(r'^version\s*=\s*[\"']([^\"']+)[\"']', content, re.MULTILINE); print(match.group(1) if match else '')")
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Error: pyproject.toml version ($PACKAGE_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "Version check passed: $PACKAGE_VERSION"
+
+      - name: Determine if prerelease
+        id: prerelease
+        run: |
+          VERSION="${{ steps.extract.outputs.version }}"
+          if [[ "$VERSION" =~ -(alpha|beta|rc|pre|dev) ]]; then
+            echo "prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate release notes
+        id: release_notes
+        uses: actions/github-script@v8
+        env:
+          PREVIOUS_VERSION: ${{ steps.extract.outputs.previous_version }}
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          script: |
+            const previousTag = process.env.PREVIOUS_VERSION || '';
+            const tagName = context.ref.replace('refs/tags/', '');
+            
+            const releaseNotes = await github.rest.repos.generateReleaseNotes({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              previous_tag_name: previousTag
+            });
+            
+            core.setOutput('RELEASE_NOTES', releaseNotes.data.body);
+
+      - name: Build package
+        run: uv build
+
+      - name: Create GitHub Release
+        uses: actions/github-script@v8
+        env:
+          VERSION: ${{ steps.extract.outputs.version }}
+          RELEASE_NOTES: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+          PRERELEASE: ${{ steps.prerelease.outputs.prerelease }}
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          script: |
+            const version = process.env.VERSION;
+            const releaseName = `v${version}`;
+            const releaseNotes = process.env.RELEASE_NOTES;
+            const isPrerelease = process.env.PRERELEASE === 'true';
+            
+            if (!version) {
+              core.setFailed("Version is undefined.");
+              return;
+            }
+            
+            try {
+              const response = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: context.ref.replace('refs/tags/', ''),
+                name: releaseName,
+                body: releaseNotes,
+                draft: false,
+                prerelease: isPrerelease
+              });
+              
+              core.exportVariable('RELEASE_HTML_URL', response.data.html_url);
+              core.exportVariable('RELEASE_ID', response.data.id);
+              core.exportVariable('RELEASE_UPLOAD_URL', response.data.upload_url);
+              
+              console.log(`Release created: ${response.data.html_url}`);
+            } catch (error) {
+              core.setFailed(`Failed to create release: ${error.message}`);
+            }
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}

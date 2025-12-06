@@ -1,0 +1,7 @@
+{
+  "organization": "your-org-name",
+  "personal_access_token": "your-pat-token",
+  "projects": ["project1", "project2"],
+  "start_date": "2024-01-01T00:00:00Z"
+}
+
