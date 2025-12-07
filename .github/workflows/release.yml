@@ -60,7 +60,13 @@ jobs:
       - name: Verify pyproject.toml version matches tag
         run: |
           TAG_VERSION="${{ steps.extract.outputs.version }}"
-          PACKAGE_VERSION=$(uv run python -c "import re; content = open('pyproject.toml').read(); match = re.search(r'^version\s*=\s*[\"']([^\"']+)[\"']', content, re.MULTILINE); print(match.group(1) if match else '')")
+          PACKAGE_VERSION=$(uv run python <<'EOF'
+          import re
+          content = open('pyproject.toml').read()
+          match = re.search(r'^version\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+          print(match.group(1) if match else '')
+          EOF
+          )
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
             echo "Error: pyproject.toml version ($PACKAGE_VERSION) does not match tag ($TAG_VERSION)"
             exit 1
