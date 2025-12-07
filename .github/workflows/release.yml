@@ -11,7 +11,6 @@ concurrency:
 
 permissions:
   contents: write
-  id-token: write
 
 jobs:
   release:
@@ -140,8 +139,8 @@ jobs:
               core.setFailed(`Failed to create release: ${error.message}`);
             }
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          packages-dir: dist/
-          password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Upload artifacts to GitHub Release
+        run: |
+          gh release upload ${{ github.ref_name }} dist/* --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

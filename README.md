@@ -19,11 +19,19 @@ This tap extracts data from Azure DevOps, including:
 
 ## Installation
 
+**Note:** This tap is distributed via GitHub only and is not published to PyPI.
+
+### For Local Development
+
 Install using `uv`:
 
 ```bash
 uv sync
 ```
+
+### For Meltano
+
+When using with Meltano, install directly from GitHub. See the [With Meltano](#with-meltano) section below for configuration examples.
 
 ## Configuration
 
@@ -148,13 +156,31 @@ plugins:
   extractors:
     - name: tap-azuredevops
       namespace: tap_azuredevops
-      pip_url: -e .
+      pip_url: git+https://github.com/ellisvalentiner/tap-azuredevops.git
       config:
         organization: ${AZURE_DEVOPS_ORGANIZATION}
         personal_access_token: ${AZURE_DEVOPS_PAT}
-      # Or use a config file:
-      # config: config.json
 ```
+
+To install a specific version, use:
+
+```yaml
+pip_url: git+https://github.com/ellisvalentiner/tap-azuredevops.git@v0.1.1
+```
+
+To install from a specific branch:
+
+```yaml
+pip_url: git+https://github.com/ellisvalentiner/tap-azuredevops.git@main
+```
+
+Alternatively, you can install from a pre-built wheel (faster, no build step):
+
+```yaml
+pip_url: https://github.com/ellisvalentiner/tap-azuredevops/releases/download/v0.1.1/tap_azuredevops-0.1.1-py3-none-any.whl
+```
+
+**Note:** Pre-built wheels are available as artifacts on each [GitHub release](https://github.com/ellisvalentiner/tap-azuredevops/releases).
 
 ## Streams
 
