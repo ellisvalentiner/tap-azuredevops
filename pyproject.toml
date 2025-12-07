@@ -1,6 +1,6 @@
 [project]
 name = "tap-azuredevops"
-version = "0.1.0"
+version = "0.1.1"
 description = "Singer tap for extracting data from Azure DevOps"
 readme = "README.md"
 requires-python = ">=3.11"

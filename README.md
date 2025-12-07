@@ -27,6 +27,10 @@ uv sync
 
 ## Configuration
 
+Configuration can be provided via a JSON config file or environment variables (or a combination of both). Environment variables take precedence over config file values.
+
+### Using a Config File
+
 Copy the sample configuration file and update it with your credentials:
 
 ```bash
@@ -63,14 +67,47 @@ Example with all options:
 }
 ```
 
+### Environment Variables
+
+As an alternative to storing credentials in the JSON config file, you can use environment variables. This is especially useful for CI/CD pipelines and production deployments. Environment variables take precedence over config file values.
+
+**Supported environment variables:**
+- `AZURE_DEVOPS_ORGANIZATION`: Azure DevOps organization name
+- `AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN`: Personal Access Token for authentication
+
+**Example using environment variables:**
+
+```bash
+export AZURE_DEVOPS_ORGANIZATION="your-org-name"
+export AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN="your-pat-token"
+
+# Run tap with minimal config (or empty config)
+uv run tap-azuredevops --config config.json --discover
+```
+
+You can also mix environment variables with config file values. For example, you might store the organization in the config file but use an environment variable for the token:
+
+```bash
+export AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN="your-pat-token"
+```
+
+```json
+{
+  "organization": "your-org-name"
+}
+```
+
 ### Personal Access Token
 
 To create a Personal Access Token:
 
 1. Go to Azure DevOps → User Settings → Personal Access Tokens
 2. Create a new token with appropriate scopes:
-   - **Code (read)**: Required for repositories, commits, branches
+   - **Code (read)**: Required for repositories, commits, branches, tags
    - **Pull Requests (read)**: Required for pull requests
+   - **Release (Read & Execute)**: Required for releases (optional - tap will skip releases if not available)
+   - **Build (read)**: Required for builds
+   - **Work Items (read)**: Required for work items
 
 ## Usage
 
@@ -205,6 +242,7 @@ Extracts all releases and deployments for each project.
 - **Replication Key**: `createdOn` (supports incremental sync)
 - **Parent Stream**: `projects`
 - **Endpoint**: `GET /{project}/_apis/release/releases`
+- **Note**: If your Personal Access Token doesn't have "Release (Read & Execute)" permissions, the tap will log a warning and skip releases for that project, but continue processing other streams. To enable releases, add the "Release (Read & Execute)" scope to your PAT.
 
 ## Development
 

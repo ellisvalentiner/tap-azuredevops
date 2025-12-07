@@ -20,14 +20,18 @@ plugins:
     - name: organization
       label: Organization
       description: Azure DevOps organization name
-    - name: personal_access_token
       kind: string
+    - name: personal_access_token
+      kind: password
       label: Personal Access Token
       description: Personal Access Token for authentication
       sensitive: true
+      hidden: false
+      documentation: https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate
     - name: projects
       label: Projects
       description: Optional list of project names to filter
+      kind: array
     - name: start_date
       kind: date_iso8601
       label: Start Date

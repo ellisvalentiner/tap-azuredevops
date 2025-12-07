@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+import logging
+
+import requests
 import singer_sdk.typing as th
+from singer_sdk.exceptions import FatalAPIError
 from singer_sdk.pagination import JSONPathPaginator
 
 from tap_azuredevops.client import AzureDevOpsStream
 from tap_azuredevops.streams.projects import ProjectsStream
+
+logger = logging.getLogger(__name__)
 
 
 class ReleasesStream(AzureDevOpsStream):
@@ -154,3 +160,61 @@ class ReleasesStream(AzureDevOpsStream):
             return self.config["start_date"]
 
         return self.get_starting_replication_key_value(context)
+
+    def _request(
+        self,
+        *args,
+        **kwargs,
+    ) -> requests.Response:
+        """Make API request with 401 error handling.
+
+        Override to handle 401 errors gracefully for releases endpoint.
+        This can occur if the PAT doesn't have Release permissions.
+
+        Args:
+            *args: Positional arguments passed to parent _request.
+            **kwargs: Keyword arguments passed to parent _request.
+
+        Returns:
+            Response object. For 401 errors, returns a mock empty response.
+        """
+        try:
+            return super()._request(*args, **kwargs)
+        except FatalAPIError as e:
+            # Check if it's a 401 error
+            if "401" in str(e) or "Unauthorized" in str(e):
+                project_name = "unknown"
+                if hasattr(self, "_context") and self._context:
+                    project_name = self._context.get("name", "unknown")
+                logger.warning(
+                    f"401 Unauthorized when accessing releases for project '{project_name}'. "
+                    "This usually means the Personal Access Token doesn't have 'Release (Read)' "
+                    "permissions. Skipping releases for this project. "
+                    "To fix this, add 'Release (Read & Execute)' scope to your PAT."
+                )
+                # Return a mock response with empty data to continue processing
+                mock_response = requests.Response()
+                mock_response.status_code = 200
+                mock_response._content = b'{"value": []}'
+                mock_response.headers["Content-Type"] = "application/json"
+                # Set encoding to avoid issues
+                mock_response.encoding = "utf-8"
+                # Set url if available from kwargs
+                if "url" in kwargs:
+                    mock_response.url = kwargs["url"]
+                return mock_response
+            # Re-raise other FatalAPIErrors
+            raise
+
+    def request_records(self, context: dict | None) -> None:
+        """Request records from the API.
+
+        Override to store context for error messages.
+
+        Args:
+            context: Stream context.
+        """
+        # Store context for error messages
+        self._context = context
+        # Call parent implementation
+        super().request_records(context)

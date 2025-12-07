@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+from unittest.mock import patch
+
 import pytest
 
 from tap_azuredevops.tap import TapAzureDevOps
@@ -73,3 +76,68 @@ def test_tap_with_optional_config():
     tap = TapAzureDevOps(config=config)
     assert tap.config["projects"] == ["project1", "project2"]
     assert tap.config["start_date"] == "2024-01-01T00:00:00Z"
+
+
+def test_tap_with_environment_variables():
+    """Test tap initialization with environment variables."""
+    with patch.dict(
+        os.environ,
+        {
+            "AZURE_DEVOPS_ORGANIZATION": "env-org",
+            "AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN": "env-token",
+        },
+    ):
+        tap = TapAzureDevOps(config={})
+        assert tap.config["organization"] == "env-org"
+        assert tap.config["personal_access_token"] == "env-token"
+
+
+def test_tap_environment_variables_override_config():
+    """Test that environment variables override config file values."""
+    config = {
+        "organization": "config-org",
+        "personal_access_token": "config-token",
+    }
+
+    with patch.dict(
+        os.environ,
+        {
+            "AZURE_DEVOPS_ORGANIZATION": "env-org",
+            "AZURE_DEVOPS_PERSONAL_ACCESS_TOKEN": "env-token",
+        },
+    ):
+        tap = TapAzureDevOps(config=config)
+        # Environment variables should take precedence
+        assert tap.config["organization"] == "env-org"
+        assert tap.config["personal_access_token"] == "env-token"
+
+
+def test_tap_config_fallback_when_env_not_set():
+    """Test that config file values work when environment variables are not set."""
+    config = {
+        "organization": "config-org",
+        "personal_access_token": "config-token",
+        "projects": ["project1"],
+    }
+
+    # Ensure environment variables are not set
+    with patch.dict(os.environ, {}, clear=True):
+        tap = TapAzureDevOps(config=config)
+        # Config file values should be used
+        assert tap.config["organization"] == "config-org"
+        assert tap.config["personal_access_token"] == "config-token"
+        assert tap.config["projects"] == ["project1"]
+
+
+def test_tap_partial_environment_variables():
+    """Test tap with only one environment variable set."""
+    config = {
+        "organization": "config-org",
+        "personal_access_token": "config-token",
+    }
+
+    with patch.dict(os.environ, {"AZURE_DEVOPS_ORGANIZATION": "env-org"}):
+        tap = TapAzureDevOps(config=config)
+        # Organization should come from env, token from config
+        assert tap.config["organization"] == "env-org"
+        assert tap.config["personal_access_token"] == "config-token"
